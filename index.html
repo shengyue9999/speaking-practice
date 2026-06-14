@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英语口语练习</title>
+<style>
+:root {
+  --ink: #1a2332;
+  --muted: #5f6b7a;
+  --line: #dde1e7;
+  --panel: #ffffff;
+  --paper: #f5f7fa;
+  --accent: #3498db;
+  --accent-dark: #2980b9;
+  --gold: #e67e22;
+  --green: #27ae60;
+  --red: #e74c3c;
+  --blue-soft: #eaf2f8;
+  --red-soft: #fdedec;
+  --green-soft: #eafaf1;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(52,152,219,0.06), transparent 280px), var(--paper);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+button, input, textarea, select { font: inherit; }
+
+button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.primary:hover:not(:disabled) { background: var(--accent-dark); }
+
+textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 12px 14px;
+  outline: none;
+  width: 100%;
+  resize: vertical;
+  line-height: 1.7;
+}
+textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52,152,219,0.12); }
+
+.container { max-width: 720px; margin: 0 auto; padding: 20px 20px 60px; }
+
+header.app-head { text-align: center; margin: 36px 0 28px; }
+header.app-head h1 { font-size: 28px; font-weight: 800; color: var(--ink); }
+header.app-head p { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+.step {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.step-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.step-label .num {
+  display: inline-block;
+  width: 20px; height: 20px;
+  line-height: 20px;
+  text-align: center;
+  background: var(--blue-soft);
+  color: var(--accent-dark);
+  border-radius: 50%;
+  font-size: 12px;
+  margin-right: 6px;
+}
+.step-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.row .grow { flex: 1; }
+
+.meta { font-size: 13px; color: var(--muted); }
+
+.inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.inline input[type="range"] { width: 90px; }
+select {
+  border: 1px solid var(--line); border-radius: 8px; background: #fff;
+  padding: 8px 10px; min-height: 40px; color: var(--ink); outline: none; max-width: 200px;
+}
+select:focus { border-color: var(--accent); }
+
+.warn {
+  font-size: 13px; color: var(--gold); background: var(--red-soft);
+  padding: 8px 12px; border-radius: 8px; margin-top: 10px;
+}
+
+/* 录音按钮 */
+#recordBtn.recording {
+  background: var(--red); color: #fff; border-color: var(--red);
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(231,76,60,0); }
+}
+#recordTime { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; min-width: 40px; }
+
+#compareStatus { font-size: 14px; color: var(--muted); margin-top: 10px; min-height: 20px; }
+#compareStatus.error { color: var(--red); }
+
+/* 结果 */
+#step-result { display: none; }
+.accuracy-box {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.accuracy-pct {
+  font-size: 44px; font-weight: 800; line-height: 1;
+}
+.accuracy-pct.good { color: var(--green); }
+.accuracy-pct.mid { color: var(--gold); }
+.accuracy-pct.low { color: var(--red); }
+.accuracy-detail { font-size: 14px; color: var(--muted); }
+
+.diff {
+  font-size: 18px; line-height: 2.1;
+  padding: 18px 20px;
+  background: var(--paper);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  word-spacing: 2px;
+}
+.tok-ok { color: var(--ink); }
+.tok-miss {
+  color: var(--red);
+  text-decoration: underline wavy var(--red);
+  text-underline-offset: 4px;
+  cursor: help;
+  font-weight: 600;
+}
+.tok-extra {
+  color: var(--muted); opacity: 0.5; font-style: italic;
+}
+
+.legend {
+  display: flex; gap: 18px; margin-top: 14px; font-size: 13px; color: var(--muted); flex-wrap: wrap;
+}
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i {
+  display: inline-block; width: 14px; height: 3px; border-radius: 2px;
+}
+.legend .sw-ok { background: var(--ink); }
+.legend .sw-miss { background: var(--red); }
+.legend .sw-extra { background: var(--muted); opacity: 0.5; }
+
+.disabled-note {
+  font-size: 13px; color: var(--red); margin-top: 8px;
+}
+button[disabled] + .disabled-note,
+.disabled-note { display: block; }
+
+footer.app-foot {
+  text-align: center; font-size: 12px; color: var(--muted); margin-top: 30px;
+}
+footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
+
+@media (max-width: 520px) {
+  .container { padding: 14px; }
+  header.app-head h1 { font-size: 23px; }
+  .step { padding: 16px; }
+  .diff { font-size: 16px; }
+  .accuracy-pct { font-size: 36px; }
+  select { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="app-head">
+    <h1>英语口语练习</h1>
+    <p>输入英文 · 听示范 · 录音跟读 · 自动对比 · 标红读错的词</p>
+  </header>
+
+  <!-- STEP 1: 输入 -->
+  <section class="step">
+    <div class="step-label"><span class="num">1</span>输入要练习的英文</div>
+    <div class="step-hint">粘贴一句话或一段话，单词数实时统计。</div>
+    <textarea id="originalText" rows="3" placeholder="The quick brown fox jumps over the lazy dog."></textarea>
+    <div class="row" style="margin-top:10px;">
+      <button id="loadSample" type="button">示例</button>
+      <span class="meta" id="wordCount">0 词</span>
+    </div>
+  </section>
+
+  <!-- STEP 2: 示范朗读 -->
+  <section class="step">
+    <div class="step-label"><span class="num">2</span>听示范朗读</div>
+    <div class="step-hint">浏览器内置语音（免费），先听标准读法。</div>
+    <div class="row">
+      <button id="playDemo" class="primary" type="button">▶ 朗读示范</button>
+      <button id="stopDemo" type="button">■ 停止</button>
+      <label class="inline">语速
+        <input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="0.9">
+        <span id="rateVal">0.9×</span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <label class="inline">声音
+        <select id="voiceSelect"><option value="">加载中…</option></select>
+      </label>
+    </div>
+    <p id="ttsWarn" class="warn" style="display:none;">当前设备没有英语语音，示范朗读不可用，但录音和对比仍可使用。</p>
+  </section>
+
+  <!-- STEP 3: 录音 -->
+  <section class="step">
+    <div class="step-label"><span class="num">3</span>录下你的朗读</div>
+    <div class="step-hint">点开始，跟着朗读，结束后点停止。建议控制在 90 秒内。</div>
+    <div class="row">
+      <button id="recordBtn" class="primary" type="button">● 开始录音</button>
+      <span id="recordTime" class="meta">0″</span>
+      <span id="recordStatus" class="meta"></span>
+    </div>
+    <audio id="playback" controls style="display:none;width:100%;margin-top:12px;"></audio>
+    <p id="recordWarn" class="warn" style="display:none;"></p>
+  </section>
+
+  <!-- STEP 4: 对比 -->
+  <section class="step">
+    <div class="step-label"><span class="num">4</span>对比原句</div>
+    <div class="step-hint">把录音发给云端 Whisper 识别，再与原文逐词比对。</div>
+    <button id="compareBtn" class="primary" type="button">开始对比</button>
+    <p id="compareStatus"></p>
+  </section>
+
+  <!-- STEP 5: 结果 -->
+  <section class="step" id="step-result">
+    <div class="step-label"><span class="num">5</span>结果</div>
+    <div class="accuracy-box">
+      <span class="accuracy-pct" id="accuracyPct">—</span>
+      <span class="accuracy-detail" id="accuracyDetail"></span>
+    </div>
+    <div class="diff" id="diffOutput"></div>
+    <div class="legend">
+      <span><i class="sw-ok"></i>正确</span>
+      <span><i class="sw-miss"></i>读错 / 漏读（悬停看你说成了什么）</span>
+      <span><i class="sw-extra"></i>多读</span>
+    </div>
+    <div class="row" style="margin-top:16px;">
+      <button id="retryBtn" type="button">↻ 再读一次</button>
+      <button id="clearBtn" type="button">换一段</button>
+    </div>
+  </section>
+
+  <footer class="app-foot">
+    <p>识别由 OpenRouter / Groq 的 Whisper 提供 · 仅用于个人练习</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============ 元素 ============
+  const $ = id => document.getElementById(id);
+  const originalText = $('originalText');
+  const wordCount = $('wordCount');
+  const loadSample = $('loadSample');
+  const playDemo = $('playDemo');
+  const stopDemo = $('stopDemo');
+  const rate = $('rate');
+  const rateVal = $('rateVal');
+  const voiceSelect = $('voiceSelect');
+  const ttsWarn = $('ttsWarn');
+  const recordBtn = $('recordBtn');
+  const recordTime = $('recordTime');
+  const recordStatus = $('recordStatus');
+  const recordWarn = $('recordWarn');
+  const playback = $('playback');
+  const compareBtn = $('compareBtn');
+  const compareStatus = $('compareStatus');
+  const stepResult = $('step-result');
+  const accuracyPct = $('accuracyPct');
+  const accuracyDetail = $('accuracyDetail');
+  const diffOutput = $('diffOutput');
+  const retryBtn = $('retryBtn');
+  const clearBtn = $('clearBtn');
+
+  // ============ API URL 探测 ============
+  // 首次 Cloudflare 部署后会得到一个 *.pages.dev 主机，把它填到下方常量，
+  // GitHub Pages 上的页面就能跨域调用它（CORS 允许 *）。
+  const CF_PAGES_DEV_HOST = ''; // 例：'speaking-practice-abc.pages.dev'
+  function getTranscribeUrl() {
+    const h = location.hostname;
+    // 同源：Cloudflare pages.dev / 自定义域名 / 本地 wrangler dev
+    if (h.endsWith('.pages.dev') ||
+        h === 'speaking.sheng-1980.cc' ||
+        h === 'localhost' || h === '127.0.0.1') {
+      return '/api/transcribe';
+    }
+    // GitHub Pages 等无 Function 的静态域名：跨域调 Cloudflare
+    if (CF_PAGES_DEV_HOST) {
+      return 'https://' + CF_PAGES_DEV_HOST + '/api/transcribe';
+    }
+    return '/api/transcribe'; // 404 时会降级提示
+  }
+
+  // ============ 词数统计 ============
+  function countWords(t) { return tokenize(t).length; }
+  originalText.addEventListener('input', () => {
+    wordCount.textContent = countWords(originalText.value) + ' 词';
+  });
+
+  const SAMPLE = "The quick brown fox jumps over the lazy dog. " +
+                 "Practice makes perfect, and reading aloud every day helps you speak more naturally.";
+  loadSample.addEventListener('click', () => {
+    originalText.value = SAMPLE;
+    wordCount.textContent = countWords(SAMPLE) + ' 词';
+  });
+
+  // ============ Step 2: TTS（SpeechSynthesis） ============
+  let voices = [];
+  function loadVoices() {
+    const all = speechSynthesis.getVoices();
+    voices = all.filter(v => /^en/i.test(v.lang));
+    voiceSelect.innerHTML = '';
+    if (voices.length === 0) {
+      voiceSelect.innerHTML = '<option value="">无英语语音</option>';
+      ttsWarn.style.display = 'block';
+      playDemo.disabled = true;
+      return;
+    }
+    ttsWarn.style.display = 'none';
+    playDemo.disabled = false;
+    // 优先 en-US，其次 en-GB，其余
+    voices.sort((a, b) => {
+      const rank = l => (l === 'en-US' ? 0 : /^en-US/i.test(l) ? 1 : /^en/i.test(l) ? 2 : 3);
+      return rank(a.lang) - rank(b.lang);
+    });
+    voices.forEach((v, i) => {
+      const o = document.createElement('option');
+      o.value = i;
+      o.textContent = v.name + ' (' + v.lang + ')';
+      voiceSelect.appendChild(o);
+    });
+  }
+  if ('speechSynthesis' in window) {
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+    // 某些浏览器不触发 voiceschanged，延迟兜底
+    setTimeout(loadVoices, 800);
+  } else {
+    voiceSelect.innerHTML = '<option value="">不支持</option>';
+    ttsWarn.style.display = 'block';
+    playDemo.disabled = true;
+  }
+
+  rate.addEventListener('input', () => { rateVal.textContent = parseFloat(rate.value).toFixed(1) + '×'; });
+
+  function speak() {
+    const text = originalText.value.trim();
+    if (!text) { alert('请先在第 1 步输入英文'); originalText.focus(); return; }
+    if (voices.length === 0) { alert('当前设备没有英语语音'); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = voices[parseInt(voiceSelect.value, 10)] || voices[0];
+    u.lang = u.voice ? u.voice.lang : 'en-US';
+    u.rate = parseFloat(rate.value);
+    speechSynthesis.speak(u);
+  }
+  playDemo.addEventListener('click', speak);
+  stopDemo.addEventListener('click', () => speechSynthesis.cancel());
+
+  // ============ Step 3: 录音（MediaRecorder） ============
+  const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  let mediaRecorder = null;
+  let chunks = [];
+  let recordedMime = '';
+  let lastRecording = null; // { blob, mime }
+  let recTimer = null;
+  let recStartTs = 0;
+
+  function pickMime() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4;codecs=aac',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+    ];
+    for (const m of candidates) {
+      if (MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return ''; // 让浏览器自选
+  }
+
+  function disableRecord(msg) {
+    recordBtn.disabled = true;
+    recordWarn.style.display = 'block';
+    recordWarn.textContent = msg;
+  }
+  if (!canRecord) {
+    disableRecord('当前浏览器不支持录音（需 iOS Safari 14.4+ 或现代 Chrome / Firefox）。');
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordedMime = pickMime();
+      mediaRecorder = recordedMime
+        ? new MediaRecorder(stream, { mimeType: recordedMime })
+        : new MediaRecorder(stream);
+      chunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: recordedMime || 'audio/webm' });
+        playback.src = URL.createObjectURL(blob);
+        playback.style.display = 'block';
+        lastRecording = { blob, mime: recordedMime || blob.type || 'audio/webm' };
+        compareBtn.disabled = false;
+        stream.getTracks().forEach(t => t.stop()); // 释放麦克风
+      };
+      mediaRecorder.start();
+      recordBtn.classList.add('recording');
+      recordBtn.textContent = '■ 停止';
+      recordStatus.textContent = '录音中…';
+      recordWarn.style.display = 'none';
+      recStartTs = Date.now();
+      recTimer = setInterval(() => {
+        const s = Math.floor((Date.now() - recStartTs) / 1000);
+        recordTime.textContent = s + '″';
+        if (s >= 90) stopRecording(); // 软上限
+      }, 250);
+    } catch (e) {
+      disableRecord('无法访问麦克风，请在浏览器设置中允许麦克风权限。');
+      console.error('getUserMedia error:', e);
+    }
+  }
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    recordBtn.classList.remove('recording');
+    recordBtn.textContent = '● 开始录音';
+    recordStatus.textContent = lastRecording ? '已录制，可对比' : '';
+    if (recTimer) { clearInterval(recTimer); recTimer = null; }
+  }
+  recordBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') stopRecording();
+    else startRecording();
+  });
+
+  // ============ Step 4: 对比 ============
+  compareBtn.disabled = true;
+  async function compare() {
+    const original = originalText.value.trim();
+    if (!original) { alert('请先在第 1 步输入英文'); return; }
+    if (!lastRecording) { alert('请先在第 3 步录音'); return; }
+    compareBtn.disabled = true;
+    compareStatus.className = '';
+    compareStatus.textContent = '识别中…（通常 3～10 秒）';
+
+    try {
+      const fd = new FormData();
+      const mime = lastRecording.mime;
+      // 扩展名要与容器匹配：mp4 音频用 .m4a，否则 Whisper 可能拒绝
+      let ext = 'webm';
+      if (mime.includes('mp4')) ext = 'm4a';
+      else if (mime.includes('ogg')) ext = 'ogg';
+      fd.append('audio', lastRecording.blob, 'recording.' + ext);
+      fd.append('mime', mime);
+
+      const res = await fetch(getTranscribeUrl(), { method: 'POST', body: fd });
+      if (res.status === 404) {
+        throw new Error('此域名不支持识别（GitHub Pages 无服务端）。请改用 speaking.sheng-1980.cc。');
+      }
+      if (!res.ok) {
+        let msg = 'HTTP ' + res.status;
+        try { const j = await res.json(); if (j.error) msg = j.error; } catch (_) {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      const transcript = (data.text || '').trim();
+      compareStatus.textContent = '识别完成' + (data.provider ? '（' + data.provider + '）' : '');
+      renderResult(original, transcript);
+    } catch (e) {
+      compareStatus.className = 'error';
+      compareStatus.textContent = '识别失败：' + e.message;
+    } finally {
+      compareBtn.disabled = false;
+    }
+  }
+  compareBtn.addEventListener('click', compare);
+
+  // ============ Step 5: 结果 + diff ============
+  // 归一化：小写，只保留字母/数字/撇号/连字符，按空白切分
+  function tokenize(text) {
+    return text.toLowerCase()
+      .replace(/[^a-z0-9'\- ]+/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  // 单词级 Levenshtein DP + 回溯，区分 match/sub/del/ins
+  function diffWords(a, b) {
+    const N = a.length, M = b.length;
+    const dp = Array.from({ length: N + 1 }, () => new Array(M + 1).fill(0));
+    for (let i = 0; i <= N; i++) dp[i][0] = i;
+    for (let j = 0; j <= M; j++) dp[0][j] = j;
+    for (let i = 1; i <= N; i++) {
+      for (let j = 1; j <= M; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(
+          dp[i - 1][j - 1] + cost,
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1
+        );
+      }
+    }
+    const ops = [];
+    let i = N, j = M;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        if (dp[i][j] === dp[i - 1][j - 1] + cost) {
+          if (cost === 0) ops.push({ type: 'match', orig: a[i - 1] });
+          else ops.push({ type: 'sub', orig: a[i - 1], asr: b[j - 1] });
+          i--; j--;
+          continue;
+        }
+      }
+      if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
+        ops.push({ type: 'del', orig: a[i - 1] });
+        i--;
+        continue;
+      }
+      ops.push({ type: 'ins', asr: b[j - 1] });
+      j--;
+    }
+    ops.reverse();
+    return ops;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function renderResult(original, transcript) {
+    const a = tokenize(original);
+    const b = tokenize(transcript);
+    const ops = diffWords(a, b);
+
+    const matchCount = ops.filter(o => o.type === 'match').length;
+    const origCount = a.length;
+    const accuracy = origCount === 0 ? 0 : Math.round(100 * matchCount / origCount);
+
+    accuracyPct.textContent = accuracy + '%';
+    accuracyPct.className = 'accuracy-pct ' +
+      (accuracy >= 80 ? 'good' : accuracy >= 60 ? 'mid' : 'low');
+    accuracyDetail.textContent = matchCount + ' / ' + origCount + ' 词正确' +
+      (transcript === '' ? '（未识别到语音）' : '');
+
+    diffOutput.innerHTML = ops.map(op => {
+      switch (op.type) {
+        case 'match': return '<span class="tok-ok">' + escapeHtml(op.orig) + '</span>';
+        case 'sub':   return '<span class="tok-miss" title="你说成了：' + escapeHtml(op.asr) + '">' + escapeHtml(op.orig) + '</span>';
+        case 'del':   return '<span class="tok-miss" title="漏读">[' + escapeHtml(op.orig) + ']</span>';
+        case 'ins':   return '<span class="tok-extra" title="多读">' + escapeHtml(op.asr) + '</span>';
+      }
+      return '';
+    }).join(' ') || '<span class="meta">（无内容）</span>';
+
+    stepResult.style.display = 'block';
+    stepResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  retryBtn.addEventListener('click', () => {
+    stepResult.style.display = 'none';
+    lastRecording = null;
+    playback.style.display = 'none';
+    playback.src = '';
+    compareStatus.textContent = '';
+    compareBtn.disabled = true;
+    recordTime.textContent = '0″';
+    recordStatus.textContent = '';
+    recordBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  clearBtn.addEventListener('click', () => {
+    stepResult.style.display = 'none';
+    originalText.value = '';
+    wordCount.textContent = '0 词';
+    lastRecording = null;
+    playback.style.display = 'none';
+    playback.src = '';
+    compareStatus.textContent = '';
+    compareBtn.disabled = true;
+    recordTime.textContent = '0″';
+    recordStatus.textContent = '';
+    originalText.focus();
+  });
+
+  // 初始词数
+  wordCount.textContent = countWords(originalText.value) + ' 词';
+})();
+</script>
+</body>
+</html>

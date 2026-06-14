@@ -1,0 +1,11 @@
+# 本地开发密钥（复制本文件为 .dev.vars 再填）。
+# .dev.vars 已在 .gitignore 中，不会被提交。
+#
+# 线上密钥在 Cloudflare Dashboard → Pages → speaking-practice →
+# Settings → Variables and Secrets 配置，不要写进这里。
+
+# 主：OpenRouter（与 math-practice 共用同一个 key）。驱动 /audio/transcriptions。
+OPENROUTER_API_KEY="sk-or-..."
+
+# 备：Groq whisper-large-v3。免费额度 2000 RPD。申请：https://console.groq.com/keys
+GROQ_API_KEY="gsk_..."
