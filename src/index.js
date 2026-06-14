@@ -3,6 +3,7 @@
 // 职责：剥离 /en 前缀 → API 路由走 ASR，其余交给静态资源绑定（ASSETS）。
 
 import { handleTranscribe } from '../lib/transcribe.js';
+import { pronounceAudio } from '../lib/pronounce.js';
 
 // 工具挂载路径前缀。访问 https://sheng-1980.cc/en/ 进入工具。
 const PATH_PREFIX = '/en';
@@ -30,6 +31,9 @@ export default {
     if (sub === '/api/transcribe') {
       return handleTranscribe(request, env);
     }
+    if (sub === '/api/pronounce') {
+      return handlePronounce(request, env);
+    }
 
     // 静态资源：把 URL 改写成剥离前缀的，交给 assets 绑定 serve（index.html 等）
     const assetUrl = new URL(request.url);
@@ -38,3 +42,33 @@ export default {
     return env.ASSETS.fetch(assetReq);
   }
 };
+
+// 发音评估路由处理
+async function handlePronounce(request, env) {
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+  try {
+    const body = await request.json();
+    const { audio, refText } = body;
+    if (!audio || !refText) {
+      return new Response(JSON.stringify({ error: 'Missing audio or refText' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+    const result = await pronounceAudio(audio, refText, env);
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  } catch (e) {
+    console.error('Pronounce error:', e);
+    return new Response(JSON.stringify({ error: e.message || 'Pronunciation assessment failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+}
