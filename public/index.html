@@ -536,8 +536,8 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   const pronounceStatus = document.getElementById('pronounceStatus');
   const pronounceOutput = document.getElementById('pronounceOutput');
 
-  /** 浏览器录音 blob（webm/mp4）转 16kHz 16bit mono WAV → base64 */
-  async function blobToWavBase64(blob) {
+  /** 浏览器录音 blob（webm/mp4）转 16kHz 16bit mono WAV → ArrayBuffer */
+  async function blobToWavBuffer(blob) {
     const ctx = new AudioContext();
     const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
     ctx.close();
@@ -564,8 +564,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     v.setUint32(40, pcm.byteLength, true);
     const wav = new Uint8Array(44 + pcm.byteLength);
     wav.set(new Uint8Array(hdr)); wav.set(new Uint8Array(pcm.buffer), 44);
-    let bin = ''; for (let i = 0; i < wav.length; i++) bin += String.fromCharCode(wav[i]);
-    return btoa(bin);
+    return wav.buffer;
   }
 
   async function doPronounce() {
@@ -575,22 +574,57 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     pronounceBtn.disabled = true;
     pronounceStatus.className = 'meta';
     pronounceOutput.style.display = 'none';
-    pronounceStatus.textContent = '转码中…';
+    pronounceStatus.textContent = '获取签名…';
     try {
-      const b64 = await blobToWavBase64(lastRecording.blob);
-      pronounceStatus.textContent = '评估中…（通常 2～5 秒）';
-      const res = await fetch('api/pronounce', {
+      // 1) 向 Worker 拿签名 WebSocket URL
+      const signRes = await fetch('api/pronounce', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audio: b64, refText: original }),
+        body: JSON.stringify({ refText: original, evalMode: 1 }),
       });
-      if (!res.ok) {
-        let msg = 'HTTP ' + res.status;
-        try { const j = await res.json(); if (j.error) msg = j.error; } catch (_) {}
-        throw new Error(msg);
+      if (!signRes.ok) {
+        let msg = 'HTTP ' + signRes.status;
+        try { const j = await signRes.json(); if (j.error) msg = j.error; } catch (_) {}
+        throw new Error('获取签名失败：' + msg);
       }
-      const data = await res.json();
-      renderPronounce(data.Response || data);
+      const { url } = await signRes.json();
+      if (!url) throw new Error('签名 URL 为空');
+
+      // 2) 音频转 WAV
+      pronounceStatus.textContent = '转码中…';
+      const wavBuf = await blobToWavBuffer(lastRecording.blob);
+
+      // 3) WebSocket 直连腾讯云 SOE
+      pronounceStatus.textContent = '评估中…（通常 2～5 秒）';
+      const result = await new Promise(function (resolve, reject) {
+        var ws = new WebSocket(url);
+        var resolved = false;
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = function () {
+          ws.send(wavBuf);             // binary WAV 一次性发送（rec_mode=1）
+          ws.send('{"type":"end"}');   // 结束标记
+        };
+        ws.onmessage = function (e) {
+          try {
+            var msg = JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data));
+            if (msg.final === 1) {
+              resolved = true;
+              ws.close();
+              // result 可能是 JSON 字符串
+              var r = msg.result ? (typeof msg.result === 'string' ? JSON.parse(msg.result) : msg.result) : msg;
+              resolve(r);
+            }
+          } catch (err) { /* 非 JSON 消息忽略 */ }
+        };
+        ws.onerror = function () {
+          if (!resolved) { resolved = true; reject(new Error('WebSocket 连接失败')); }
+        };
+        ws.onclose = function (e) {
+          if (!resolved) { resolved = true; reject(new Error('连接意外关闭 (code=' + e.code + ')')); }
+        };
+      });
+
+      renderPronounce(result);
       pronounceStatus.textContent = '评估完成';
     } catch (e) {
       pronounceStatus.className = 'error';
@@ -602,17 +636,16 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   pronounceBtn.addEventListener('click', doPronounce);
 
   function renderPronounce(resp) {
-    if (!resp || resp.Error) {
+    if (!resp || !resp.PronAccuracy && !resp.Words) {
       pronounceOutput.style.display = 'block';
-      pronounceOutput.innerHTML = '<p class="warn">评估失败：' +
-        escapeHtml((resp && resp.Error && resp.Error.Message) || '未知错误') + '</p>';
+      pronounceOutput.innerHTML = '<p class="warn">评估失败：无效的返回结果</p>';
       return;
     }
-    const acc  = resp.PronAccuracy   != null ? resp.PronAccuracy.toFixed(1)  : '-';
-    const flu  = resp.PronFluency    != null ? resp.PronFluency.toFixed(1)   : '-';
-    const comp = resp.PronCompletion != null ? resp.PronCompletion.toFixed(1) : '-';
-    const words = resp.Words || [];
-    let h = '<div class="pronounce-score">' +
+    var acc  = resp.PronAccuracy   != null ? Number(resp.PronAccuracy).toFixed(1)  : '-';
+    var flu  = resp.PronFluency    != null ? Number(resp.PronFluency).toFixed(1)   : '-';
+    var comp = resp.PronCompletion != null ? Number(resp.PronCompletion).toFixed(1) : '-';
+    var words = resp.Words || [];
+    var h = '<div class="pronounce-score">' +
       '<div class="pronounce-score-item"><div class="pronounce-score-val" style="color:var(--green)">' + acc + '</div><div class="pronounce-score-label">准确度</div></div>' +
       '<div class="pronounce-score-item"><div class="pronounce-score-val" style="color:var(--accent)">' + flu + '</div><div class="pronounce-score-label">流利度</div></div>' +
       '<div class="pronounce-score-item"><div class="pronounce-score-val" style="color:var(--gold)">' + comp + '</div><div class="pronounce-score-label">完整度</div></div>' +
@@ -620,8 +653,8 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     if (words.length > 0) {
       h += '<div class="pronounce-word-list">';
       words.forEach(function (w) {
-        const cls = w.MatchTag === 0 ? 'bad' : 'good';
-        const sc = w.PronAccuracy != null ? w.PronAccuracy.toFixed(1) : '';
+        var cls = w.MatchTag === 0 ? 'bad' : 'good';
+        var sc = w.PronAccuracy != null ? Number(w.PronAccuracy).toFixed(1) : '';
         h += '<span class="pronounce-word ' + cls + '">' +
           escapeHtml(w.Word) +
           (sc ? '<span class="pw-score">' + sc + '</span>' : '') +

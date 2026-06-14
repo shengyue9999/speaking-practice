@@ -3,7 +3,7 @@
 // 职责：剥离 /en 前缀 → API 路由走 ASR，其余交给静态资源绑定（ASSETS）。
 
 import { handleTranscribe } from '../lib/transcribe.js';
-import { pronounceAudio } from '../lib/pronounce.js';
+import { generatePronounceUrl } from '../lib/pronounce.js';
 
 // 工具挂载路径前缀。访问 https://sheng-1980.cc/en/ 进入工具。
 const PATH_PREFIX = '/en';
@@ -43,7 +43,8 @@ export default {
   }
 };
 
-// 发音评估路由处理
+// 发音评估路由 —— 返回腾讯云新版 WebSocket 签名 URL。
+// SecretKey 不出 Worker；前端拿 URL 直连腾讯云 SOE。
 async function handlePronounce(request, env) {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -53,20 +54,23 @@ async function handlePronounce(request, env) {
   }
   try {
     const body = await request.json();
-    const { audio, refText } = body;
-    if (!audio || !refText) {
-      return new Response(JSON.stringify({ error: 'Missing audio or refText' }), {
+    const { refText, evalMode } = body || {};
+    if (!refText) {
+      return new Response(JSON.stringify({ error: 'Missing refText' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
-    const result = await pronounceAudio(audio, refText, env);
-    return new Response(JSON.stringify(result), {
+    const { url, voiceId } = await generatePronounceUrl(env, {
+      refText,
+      evalMode: evalMode || 1,
+    });
+    return new Response(JSON.stringify({ url, voiceId }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (e) {
-    console.error('Pronounce error:', e);
-    return new Response(JSON.stringify({ error: e.message || 'Pronunciation assessment failed' }), {
+    console.error('Pronounce sign error:', e);
+    return new Response(JSON.stringify({ error: e.message || 'Failed to generate sign URL' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
