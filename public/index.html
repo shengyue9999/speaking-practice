@@ -606,13 +606,17 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
         };
         ws.onmessage = function (e) {
           try {
-            var msg = JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data));
+            var raw = typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data);
+            var msg = JSON.parse(raw);
+            console.log('SOE msg:', raw);
+            if (msg.code !== undefined && msg.code !== 0) {
+              resolved = true; ws.close();
+              return reject(new Error('SOE 错误 ' + msg.code + ': ' + (msg.message || '未知')));
+            }
             if (msg.final === 1) {
-              resolved = true;
-              ws.close();
-              // result 可能是 JSON 字符串
+              resolved = true; ws.close();
               var r = msg.result ? (typeof msg.result === 'string' ? JSON.parse(msg.result) : msg.result) : msg;
-              resolve(r);
+              return resolve(r);
             }
           } catch (err) { /* 非 JSON 消息忽略 */ }
         };
