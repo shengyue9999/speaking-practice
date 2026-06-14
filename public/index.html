@@ -153,6 +153,7 @@ select:focus { border-color: var(--accent); }
   font-weight: 600;
 }
 .tok-extra { color: var(--muted); opacity: 0.5; font-style: italic; }
+.tok-note { color: var(--muted); font-size: 0.78em; font-style: italic; }
 
 .pronounce-out {
   margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px;
@@ -752,9 +753,9 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     diffOutput.innerHTML = ops.map(op => {
       switch (op.type) {
         case 'match': return '<span class="tok-ok">' + escapeHtml(op.orig) + '</span>';
-        case 'sub':   return '<span class="tok-miss" title="你说成了：' + escapeHtml(op.asr) + '">' + escapeHtml(op.orig) + '</span>';
-        case 'del':   return '<span class="tok-miss" title="漏读">[' + escapeHtml(op.orig) + ']</span>';
-        case 'ins':   return '<span class="tok-extra" title="多读">' + escapeHtml(op.asr) + '</span>';
+        case 'sub':   return '<span class="tok-miss">' + escapeHtml(op.orig) + '</span><span class="tok-note">（读成 ' + escapeHtml(op.asr) + '）</span>';
+        case 'del':   return '<span class="tok-miss">[' + escapeHtml(op.orig) + ']</span>';
+        case 'ins':   return '<span class="tok-extra">' + escapeHtml(op.asr) + '</span>';
       }
       return '';
     }).join(' ') || '<span class="meta">（无内容）</span>';
