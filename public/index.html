@@ -96,7 +96,6 @@ header.app-head p { font-size: 14px; color: var(--muted); margin-top: 6px; }
 .step-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.row .grow { flex: 1; }
 
 .meta { font-size: 13px; color: var(--muted); }
 
@@ -113,7 +112,6 @@ select:focus { border-color: var(--accent); }
   padding: 8px 12px; border-radius: 8px; margin-top: 10px;
 }
 
-/* 录音按钮 */
 #recordBtn.recording {
   background: var(--red); color: #fff; border-color: var(--red);
   animation: pulse 1.2s infinite;
@@ -127,15 +125,12 @@ select:focus { border-color: var(--accent); }
 #compareStatus { font-size: 14px; color: var(--muted); margin-top: 10px; min-height: 20px; }
 #compareStatus.error { color: var(--red); }
 
-/* 结果 */
 #step-result { display: none; }
 .accuracy-box {
   display: flex; align-items: baseline; gap: 12px;
   margin-bottom: 16px; flex-wrap: wrap;
 }
-.accuracy-pct {
-  font-size: 44px; font-weight: 800; line-height: 1;
-}
+.accuracy-pct { font-size: 44px; font-weight: 800; line-height: 1; }
 .accuracy-pct.good { color: var(--green); }
 .accuracy-pct.mid { color: var(--gold); }
 .accuracy-pct.low { color: var(--red); }
@@ -157,31 +152,20 @@ select:focus { border-color: var(--accent); }
   cursor: help;
   font-weight: 600;
 }
-.tok-extra {
-  color: var(--muted); opacity: 0.5; font-style: italic;
-}
+.tok-extra { color: var(--muted); opacity: 0.5; font-style: italic; }
 
 .legend {
   display: flex; gap: 18px; margin-top: 14px; font-size: 13px; color: var(--muted); flex-wrap: wrap;
 }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
-.legend i {
-  display: inline-block; width: 14px; height: 3px; border-radius: 2px;
-}
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
 .legend .sw-ok { background: var(--ink); }
 .legend .sw-miss { background: var(--red); }
 .legend .sw-extra { background: var(--muted); opacity: 0.5; }
 
-.disabled-note {
-  font-size: 13px; color: var(--red); margin-top: 8px;
-}
-button[disabled] + .disabled-note,
-.disabled-note { display: block; }
+.disabled-note { font-size: 13px; color: var(--red); margin-top: 8px; }
 
-footer.app-foot {
-  text-align: center; font-size: 12px; color: var(--muted); margin-top: 30px;
-}
-footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
+footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); margin-top: 30px; }
 
 @media (max-width: 520px) {
   .container { padding: 14px; }
@@ -201,7 +185,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     <p>输入英文 · 听示范 · 录音跟读 · 自动对比 · 标红读错的词</p>
   </header>
 
-  <!-- STEP 1: 输入 -->
   <section class="step">
     <div class="step-label"><span class="num">1</span>输入要练习的英文</div>
     <div class="step-hint">粘贴一句话或一段话，单词数实时统计。</div>
@@ -212,7 +195,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     </div>
   </section>
 
-  <!-- STEP 2: 示范朗读 -->
   <section class="step">
     <div class="step-label"><span class="num">2</span>听示范朗读</div>
     <div class="step-hint">浏览器内置语音（免费），先听标准读法。</div>
@@ -232,7 +214,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     <p id="ttsWarn" class="warn" style="display:none;">当前设备没有英语语音，示范朗读不可用，但录音和对比仍可使用。</p>
   </section>
 
-  <!-- STEP 3: 录音 -->
   <section class="step">
     <div class="step-label"><span class="num">3</span>录下你的朗读</div>
     <div class="step-hint">点开始，跟着朗读，结束后点停止。建议控制在 90 秒内。</div>
@@ -245,7 +226,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     <p id="recordWarn" class="warn" style="display:none;"></p>
   </section>
 
-  <!-- STEP 4: 对比 -->
   <section class="step">
     <div class="step-label"><span class="num">4</span>对比原句</div>
     <div class="step-hint">把录音发给云端 Whisper 识别，再与原文逐词比对。</div>
@@ -253,7 +233,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     <p id="compareStatus"></p>
   </section>
 
-  <!-- STEP 5: 结果 -->
   <section class="step" id="step-result">
     <div class="step-label"><span class="num">5</span>结果</div>
     <div class="accuracy-box">
@@ -282,7 +261,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
 (function () {
   'use strict';
 
-  // ============ 元素 ============
   const $ = id => document.getElementById(id);
   const originalText = $('originalText');
   const wordCount = $('wordCount');
@@ -307,24 +285,10 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
   const retryBtn = $('retryBtn');
   const clearBtn = $('clearBtn');
 
-  // ============ API URL 探测 ============
-  // 首次 Cloudflare 部署后会得到一个 *.pages.dev 主机，把它填到下方常量，
-  // GitHub Pages 上的页面就能跨域调用它（CORS 允许 *）。
-  const CF_PAGES_DEV_HOST = ''; // 例：'speaking-practice-abc.pages.dev'
-  function getTranscribeUrl() {
-    const h = location.hostname;
-    // 同源：Cloudflare pages.dev / 自定义域名 / 本地 wrangler dev
-    if (h.endsWith('.pages.dev') ||
-        h === 'speaking.sheng-1980.cc' ||
-        h === 'localhost' || h === '127.0.0.1') {
-      return '/api/transcribe';
-    }
-    // GitHub Pages 等无 Function 的静态域名：跨域调 Cloudflare
-    if (CF_PAGES_DEV_HOST) {
-      return 'https://' + CF_PAGES_DEV_HOST + '/api/transcribe';
-    }
-    return '/api/transcribe'; // 404 时会降级提示
-  }
+  // ============ API URL ============
+  // 工具挂在 /en 路径下，页面在 .../en/。
+  // 相对路径 'api/transcribe' 会解析成 .../en/api/transcribe，由 Worker 路由到 ASR。
+  const TRANSCRIBE_URL = 'api/transcribe';
 
   // ============ 词数统计 ============
   function countWords(t) { return tokenize(t).length; }
@@ -353,7 +317,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     }
     ttsWarn.style.display = 'none';
     playDemo.disabled = false;
-    // 优先 en-US，其次 en-GB，其余
     voices.sort((a, b) => {
       const rank = l => (l === 'en-US' ? 0 : /^en-US/i.test(l) ? 1 : /^en/i.test(l) ? 2 : 3);
       return rank(a.lang) - rank(b.lang);
@@ -368,7 +331,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
   if ('speechSynthesis' in window) {
     loadVoices();
     speechSynthesis.onvoiceschanged = loadVoices;
-    // 某些浏览器不触发 voiceschanged，延迟兜底
     setTimeout(loadVoices, 800);
   } else {
     voiceSelect.innerHTML = '<option value="">不支持</option>';
@@ -397,7 +359,7 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
   let mediaRecorder = null;
   let chunks = [];
   let recordedMime = '';
-  let lastRecording = null; // { blob, mime }
+  let lastRecording = null;
   let recTimer = null;
   let recStartTs = 0;
 
@@ -412,7 +374,7 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     for (const m of candidates) {
       if (MediaRecorder.isTypeSupported(m)) return m;
     }
-    return ''; // 让浏览器自选
+    return '';
   }
 
   function disableRecord(msg) {
@@ -439,7 +401,7 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
         playback.style.display = 'block';
         lastRecording = { blob, mime: recordedMime || blob.type || 'audio/webm' };
         compareBtn.disabled = false;
-        stream.getTracks().forEach(t => t.stop()); // 释放麦克风
+        stream.getTracks().forEach(t => t.stop());
       };
       mediaRecorder.start();
       recordBtn.classList.add('recording');
@@ -450,7 +412,7 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
       recTimer = setInterval(() => {
         const s = Math.floor((Date.now() - recStartTs) / 1000);
         recordTime.textContent = s + '″';
-        if (s >= 90) stopRecording(); // 软上限
+        if (s >= 90) stopRecording();
       }, 250);
     } catch (e) {
       disableRecord('无法访问麦克风，请在浏览器设置中允许麦克风权限。');
@@ -482,16 +444,15 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     try {
       const fd = new FormData();
       const mime = lastRecording.mime;
-      // 扩展名要与容器匹配：mp4 音频用 .m4a，否则 Whisper 可能拒绝
       let ext = 'webm';
       if (mime.includes('mp4')) ext = 'm4a';
       else if (mime.includes('ogg')) ext = 'ogg';
       fd.append('audio', lastRecording.blob, 'recording.' + ext);
       fd.append('mime', mime);
 
-      const res = await fetch(getTranscribeUrl(), { method: 'POST', body: fd });
+      const res = await fetch(TRANSCRIBE_URL, { method: 'POST', body: fd });
       if (res.status === 404) {
-        throw new Error('此域名不支持识别（GitHub Pages 无服务端）。请改用 speaking.sheng-1980.cc。');
+        throw new Error('识别服务未就绪（/api/transcribe 404）。请稍后重试，或确认部署已完成。');
       }
       if (!res.ok) {
         let msg = 'HTTP ' + res.status;
@@ -512,7 +473,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
   compareBtn.addEventListener('click', compare);
 
   // ============ Step 5: 结果 + diff ============
-  // 归一化：小写，只保留字母/数字/撇号/连字符，按空白切分
   function tokenize(text) {
     return text.toLowerCase()
       .replace(/[^a-z0-9'\- ]+/g, ' ')
@@ -520,7 +480,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
       .filter(Boolean);
   }
 
-  // 单词级 Levenshtein DP + 回溯，区分 match/sub/del/ins
   function diffWords(a, b) {
     const N = a.length, M = b.length;
     const dp = Array.from({ length: N + 1 }, () => new Array(M + 1).fill(0));
@@ -620,7 +579,6 @@ footer.app-foot a { color: var(--accent-dark); text-decoration: none; }
     originalText.focus();
   });
 
-  // 初始词数
   wordCount.textContent = countWords(originalText.value) + ' 词';
 })();
 </script>

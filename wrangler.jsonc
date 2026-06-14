@@ -1,12 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "speaking-practice",
+  "main": "src/index.js",
   "compatibility_date": "2026-06-14",
-  "pages_build_output_dir": ".",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
   "observability": {
     "enabled": true
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+  }
 }

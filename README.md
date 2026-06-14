@@ -2,58 +2,77 @@
 
 输入英文 → 听示范朗读 → 录下你的朗读 → 自动对比原文 → 标红读错/漏读的词 → 给出准确率。
 
-线上：https://speaking.sheng-1980.cc
+线上：https://sheng-1980.cc/en
 
-## 原理
+## 架构
 
-1. **朗读示范**：浏览器原生 `SpeechSynthesis`（TTS，免费、无需 key）。
+Cloudflare **Worker**（不是 Pages），挂在主站 `/en` 路径下，通过 Workers Route `sheng-1980.cc/en*` 触发。
+
+```
+~/speaking-practice/
+├── public/index.html   # 单文件前端 SPA（HTML+CSS+JS 内联）
+├── src/index.js        # Worker 入口：剥 /en 前缀 → /api/transcribe 走 ASR，其余交 ASSETS
+├── lib/transcribe.js   # Whisper ASR 逻辑（OpenRouter→Groq provider 链）
+└── wrangler.jsonc      # Worker 配置：main + assets
+```
+
+## 工作流程
+
+1. **朗读示范**：浏览器原生 `SpeechSynthesis`（TTS，免费、无 key）。
 2. **录音**：`MediaRecorder` 采集麦克风。
-3. **对比原文**：录音上传到 Cloudflare Pages Function `/api/transcribe`，
-   Function 调 Whisper 语音识别把录音转成文字，前端再用单词级编辑距离（Levenshtein）
-   对齐原文与识别结果，区分「读错 / 漏读 / 多读」并着色，统计准确率。
+3. **对比**：前端 `fetch('api/transcribe')`（相对 `/en/` 解析为 `/en/api/transcribe`）→ Worker 剥前缀转发到 Whisper → 返回文字 → 前端 Levenshtein 单词级 diff → 标红 + 准确率。
 
-## 语音识别（ASR）
+## ASR（语音识别）
 
-Function 走 provider 链，按优先级尝试：
+`lib/transcribe.js` 的 provider 链，自动 fallback：
 
-1. **OpenRouter**（`openai/whisper-1`）—— 复用 `OPENROUTER_API_KEY`（与 math-practice 同一个 key）。
-2. **Groq**（`whisper-large-v3`）—— fallback，免费额度 2000 RPD，速度极快。
+1. **OpenRouter** `openai/whisper-1`（复用 `OPENROUTER_API_KEY`，与 math-practice 同 key）
+2. **Groq** `whisper-large-v3`（`GROQ_API_KEY`，免费 2000 RPD，速度快）
 
-两者都是 OpenAI 兼容的 `/audio/transcriptions` 契约，Function 里自动切换，无需改代码。
+两者都是 OpenAI 兼容的 `/audio/transcriptions` 契约。
 
 ## 本地开发
 
 ```bash
 cd ~/speaking-practice
-cp .dev.vars.example .dev.vars   # 填入 OPENROUTER_API_KEY / GROQ_API_KEY
-npx wrangler pages dev . --compatibility-flag=nodejs_compat --compatibility-date=2026-06-14
-# → http://localhost:8788
+cp .dev.vars.example .dev.vars   # 填 OPENROUTER_API_KEY / GROQ_API_KEY
+npx wrangler dev
+# → http://localhost:8788（路径前缀 /en 在线上才有意义，本地直接访问根即可测）
 ```
 
 ## 部署
 
-与 math-practice 同构，双平台：
+### 1. 部署到 Worker（两种方式任选）
 
-- **Cloudflare Pages（主用域名）**：`speaking.sheng-1980.cc`，监听 GitHub 仓库自动部署。
-  ASR Function 只在此域名可用。
-- **GitHub Pages（静态备份）**：`shengyue9999.github.io/speaking-practice/`。
-  无 Function，对比步骤会跨域调用 Cloudflare，或提示改用主域名。
-
+**方式 A — wrangler CLI：**
 ```bash
-git add . && git commit -m "..." && git push
-# Cloudflare Pages 自动部署，约 1–2 分钟生效
+npx wrangler deploy
 ```
+需先 `npx wrangler login` 或设置 `CLOUDFLARE_API_TOKEN`。`wrangler.jsonc` 的 `name: speaking-practice` 决定部署到哪个 Worker。
 
-远程仓库用 SSH：`git@github.com:shengyue9999/speaking-practice.git`（HTTPS 在国内常被墙）。
+**方式 B — Workers Builds（Dashboard 连 Git，push 自动部署）：**
+Cloudflare Dashboard → Workers & Pages → speaking-practice → Settings → Builds → 连 GitHub 仓库 `shengyue9999/speaking-practice`，Build command 填 `npx wrangler deploy`。
 
-### Cloudflare 配置要点
+### 2. 配 Workers Route（挂到 /en）
 
-- Build command：**留空**（不要填 `npx wrangler deploy`，那是 Worker 命令）。
-- Build output directory：`.`
-- 密钥（Variables & Secrets）：`OPENROUTER_API_KEY`、`GROQ_API_KEY`，**不写入代码**。
+Dashboard → `sheng-1980.cc` Zone → Workers Routes（或 Worker → Triggers）：
+- Route：`sheng-1980.cc/en*`
+
+> ⚠️ `*.sheng-1980.cc/en*` 的 `*.` 只匹配子域、不匹配裸域。要用 `sheng-1980.cc/en` 访问，Route 必须是裸域 `sheng-1980.cc/en*`。
+> ⚠️ `/en` 是前缀匹配，会连带 `/english`、`/engage` 等。若主站有此类路径会被劫持——可改用更具体前缀（同时改 `src/index.js` 的 `PATH_PREFIX`）。
+
+### 3. 密钥
+
+Dashboard → speaking-practice → Settings → Variables and Secrets：
+- `OPENROUTER_API_KEY`（复用 math-practice 同值）
+- `GROQ_API_KEY`（console.groq.com/keys 新申请）
+
+## 入口
+
+sheng-1980-cc 主站侧栏「小工具」入口指向 `/en`。
 
 ## 已知限制
 
-- iOS Safari 14.4+ 才支持 `MediaRecorder`，更老的系统无法录音。
-- 部分系统没有 en-US TTS 语音，示范朗读会降级（不影响录音和对比）。
-- 录音建议控制在 90 秒内（远低于 Cloudflare 100MB / Groq 25MB 的请求体上限）。
+- iOS Safari 14.4+ 才支持录音；更老的系统无法录音。
+- 部分系统没有 en-US TTS 语音，示范朗读降级（不影响录音和对比）。
+- 录音建议 ≤90 秒。
