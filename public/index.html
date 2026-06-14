@@ -163,6 +163,27 @@ select:focus { border-color: var(--accent); }
 .legend .sw-miss { background: var(--red); }
 .legend .sw-extra { background: var(--muted); opacity: 0.5; }
 
+.history-area { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.history-label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+.chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; padding: 4px 8px; border-radius: 6px;
+  border: 1px solid var(--line); background: #fff;
+  cursor: pointer; max-width: 260px; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+  transition: border-color 0.15s;
+}
+.chip:hover { border-color: var(--accent); }
+.chip-text { overflow: hidden; text-overflow: ellipsis; }
+.chip-star, .chip-del {
+  flex-shrink: 0; font-size: 12px; padding: 1px 3px; border-radius: 3px;
+  color: var(--muted); cursor: pointer; line-height: 1;
+}
+.chip-star:hover { color: var(--gold); }
+.chip-star.faved { color: var(--gold); }
+.chip-del:hover { color: var(--red); }
+
 .disabled-note { font-size: 13px; color: var(--red); margin-top: 8px; }
 
 footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); margin-top: 30px; }
@@ -192,6 +213,16 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     <div class="row" style="margin-top:10px;">
       <button id="loadSample" type="button">示例</button>
       <span class="meta" id="wordCount">0 词</span>
+    </div>
+    <div id="historyArea" class="history-area" style="display:none;">
+      <div class="history-section">
+        <span class="history-label">🕐 最近</span>
+        <div id="recentList" class="chip-list"></div>
+      </div>
+      <div class="history-section" id="favSection" style="display:none;">
+        <span class="history-label" style="margin-top:8px;">⭐ 收藏</span>
+        <div id="favList" class="chip-list"></div>
+      </div>
     </div>
   </section>
 
@@ -301,6 +332,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   loadSample.addEventListener('click', () => {
     originalText.value = SAMPLE;
     wordCount.textContent = countWords(SAMPLE) + ' 词';
+    addToHistory(SAMPLE);
   });
 
   // ============ Step 2: TTS（SpeechSynthesis） ============
@@ -462,6 +494,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
       const data = await res.json();
       const transcript = (data.text || '').trim();
       compareStatus.textContent = '识别完成' + (data.provider ? '（' + data.provider + '）' : '');
+      addToHistory(original);
       renderResult(original, transcript);
     } catch (e) {
       compareStatus.className = 'error';
@@ -580,6 +613,83 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   });
 
   wordCount.textContent = countWords(originalText.value) + ' 词';
+
+  // ============ 历史记录 & 收藏 ============
+  const HISTORY_KEY = 'sp_history';
+  const FAVORITES_KEY = 'sp_favorites';
+  const MAX_HISTORY = 20;
+
+  function loadHistory() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (_) { return []; } }
+  function saveHistory(a) { localStorage.setItem(HISTORY_KEY, JSON.stringify(a)); }
+  function loadFavorites() { try { return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); } catch (_) { return []; } }
+  function saveFavorites(a) { localStorage.setItem(FAVORITES_KEY, JSON.stringify(a)); }
+
+  function addToHistory(text) {
+    var t = text.trim();
+    if (!t || t.length < 3) return;
+    var h = loadHistory();
+    h = h.filter(function(item) { return item !== t; });
+    h.unshift(t);
+    if (h.length > MAX_HISTORY) h = h.slice(0, MAX_HISTORY);
+    saveHistory(h);
+    renderHistory();
+  }
+
+  function toggleFavorite(text) {
+    var favs = loadFavorites();
+    var i = favs.indexOf(text);
+    if (i >= 0) favs.splice(i, 1); else favs.unshift(text);
+    saveFavorites(favs);
+    renderHistory();
+  }
+
+  function removeFromHistory(text) {
+    saveHistory(loadHistory().filter(function(item) { return item !== text; }));
+    saveFavorites(loadFavorites().filter(function(item) { return item !== text; }));
+    renderHistory();
+  }
+
+  function escapeAttr(s) { return s.replace(/[&"<>]/g, function(c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+
+  function chipHTML(text, isFav) {
+    var short = text.length > 35 ? text.slice(0, 33) + '…' : text;
+    return '<span class="chip">' +
+      '<span class="chip-text" data-text="' + escapeAttr(text) + '" title="' + escapeAttr(text) + '">' + escapeHtml(short) + '</span>' +
+      '<span class="chip-star' + (isFav ? ' faved' : '') + '" data-text="' + escapeAttr(text) + '">' + (isFav ? '★' : '☆') + '</span>' +
+      '<span class="chip-del" data-text="' + escapeAttr(text) + '">✕</span>' +
+      '</span>';
+  }
+
+  function renderHistory() {
+    var h = loadHistory();
+    var favs = loadFavorites();
+    var favSet = new Set(favs);
+    var recent = h.filter(function(t) { return !favSet.has(t); }).slice(0, 5);
+    var favItems = h.filter(function(t) { return favSet.has(t); });
+    var area = document.getElementById('historyArea');
+    if (h.length === 0) { area.style.display = 'none'; return; }
+    area.style.display = 'block';
+    document.getElementById('recentList').innerHTML = recent.length
+      ? recent.map(function(t) { return chipHTML(t, false); }).join('')
+      : '<span class="meta" style="font-size:12px;">无</span>';
+    var favSec = document.getElementById('favSection');
+    if (favItems.length > 0) {
+      favSec.style.display = 'block';
+      document.getElementById('favList').innerHTML = favItems.map(function(t) { return chipHTML(t, true); }).join('');
+    } else { favSec.style.display = 'none'; }
+  }
+
+  // 事件委托：chip 点击（文本填入 / 收藏 / 删除）
+  document.getElementById('historyArea').addEventListener('click', function(e) {
+    var t = e.target.closest('[data-text]');
+    if (!t) return;
+    var text = t.dataset.text;
+    if (t.classList.contains('chip-text')) { originalText.value = text; wordCount.textContent = countWords(text) + ' 词'; }
+    else if (t.classList.contains('chip-star')) { toggleFavorite(text); }
+    else if (t.classList.contains('chip-del')) { removeFromHistory(text); }
+  });
+
+  renderHistory();
 })();
 </script>
 </body>
