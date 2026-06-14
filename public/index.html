@@ -326,6 +326,10 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   originalText.addEventListener('input', () => {
     wordCount.textContent = countWords(originalText.value) + ' 词';
   });
+  originalText.addEventListener('blur', () => {
+    var v = originalText.value.trim();
+    if (v.length >= 3) addToHistory(v);
+  });
 
   const SAMPLE = "The quick brown fox jumps over the lazy dog. " +
                  "Practice makes perfect, and reading aloud every day helps you speak more naturally.";
