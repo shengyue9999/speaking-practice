@@ -200,6 +200,7 @@ select:focus { border-color: var(--accent); }
 .chip-star:hover { color: var(--gold); }
 .chip-star.faved { color: var(--gold); }
 .chip-del:hover { color: var(--red); }
+.chip-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; padding: 0 2px; }
 
 .disabled-note { font-size: 13px; color: var(--red); margin-top: 8px; }
 
@@ -239,6 +240,10 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
       <div class="history-section" id="favSection" style="display:none;">
         <span class="history-label" style="margin-top:8px;">⭐ 收藏</span>
         <div id="favList" class="chip-list"></div>
+      </div>
+      <div class="history-section" id="mistakesSection" style="display:none;">
+        <span class="history-label" style="margin-top:10px;">🎯 常错发音 · 点击单词单独练</span>
+        <div id="mistakesList" class="chip-list"></div>
       </div>
     </div>
   </section>
@@ -640,6 +645,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
       });
 
       renderPronounce(result);
+      recordMistakes(result.Words || []);
       pronounceStatus.textContent = '评估完成';
     } catch (e) {
       pronounceStatus.className = 'error';
@@ -873,6 +879,69 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   });
 
   renderHistory();
+
+  // ============ 常错发音词库 ============
+  // 发音评估返回的每个词带 PronAccuracy 分数，<60 的记下来累积统计。
+  const MISTAKES_KEY = 'sp_mistakes';
+  const MISTAKE_THRESHOLD = 60;
+
+  function loadMistakes() { try { return JSON.parse(localStorage.getItem(MISTAKES_KEY) || '{}'); } catch (_) { return {}; } }
+  function saveMistakes(m) { localStorage.setItem(MISTAKES_KEY, JSON.stringify(m)); }
+
+  function recordMistakes(words) {
+    if (!Array.isArray(words) || !words.length) return;
+    const m = loadMistakes();
+    const now = new Date().toISOString().slice(0, 10);
+    words.forEach(function (w) {
+      const word = (w.Word || '').toLowerCase().replace(/[^a-z'\-]/g, '').trim();
+      const score = Number(w.PronAccuracy);
+      if (!word || isNaN(score) || score >= MISTAKE_THRESHOLD) return;
+      if (!m[word]) m[word] = { count: 0, totalScore: 0, lastSeen: '' };
+      m[word].count++;
+      m[word].totalScore += score;
+      m[word].lastSeen = now;
+    });
+    saveMistakes(m);
+    renderMistakes();
+  }
+
+  function removeMistake(word) {
+    const m = loadMistakes(); delete m[word]; saveMistakes(m); renderMistakes();
+  }
+
+  function renderMistakes() {
+    const m = loadMistakes();
+    const list = Object.keys(m).map(function (word) {
+      const d = m[word];
+      return { word: word, count: d.count, avg: d.count ? Math.round(d.totalScore / d.count) : 0 };
+    }).sort(function (a, b) { return b.count - a.count || a.avg - b.avg; }).slice(0, 20);
+    const sec = document.getElementById('mistakesSection');
+    if (list.length === 0) { sec.style.display = 'none'; return; }
+    sec.style.display = 'block';
+    document.getElementById('mistakesList').innerHTML = list.map(function (item) {
+      return '<span class="chip">' +
+        '<span class="chip-text" data-text="' + escapeAttr(item.word) + '" title="错 ' + item.count + ' 次，平均 ' + item.avg + ' 分">' + escapeHtml(item.word) + '</span>' +
+        '<span class="chip-meta">' + item.count + '次·' + item.avg + '</span>' +
+        '<span class="chip-del" data-text="' + escapeAttr(item.word) + '">✕</span>' +
+        '</span>';
+    }).join('');
+  }
+
+  document.getElementById('mistakesList').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var t = e.target.closest('[data-text]');
+    if (!t) return;
+    var word = t.dataset.text;
+    if (t.classList.contains('chip-text')) {
+      originalText.value = word;
+      wordCount.textContent = countWords(word) + ' 词';
+      originalText.focus();
+    } else if (t.classList.contains('chip-del')) {
+      removeMistake(word);
+    }
+  });
+
+  renderMistakes();
 })();
 </script>
 </body>
