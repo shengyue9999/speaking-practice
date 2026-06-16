@@ -350,8 +350,16 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
 
   // ============ 词数统计 ============
   function countWords(t) { return tokenize(t).length; }
+
+  // ============ 草稿自动保存 ============
+  // 输入框内容实时写 localStorage，刷新或关浏览器后自动回填，避免"输入后没失焦就关掉"导致丢失。
+  const DRAFT_KEY = 'sp_draft';
+  function saveDraft() { try { localStorage.setItem(DRAFT_KEY, originalText.value); } catch (_) {} }
+  function loadDraft() { try { return localStorage.getItem(DRAFT_KEY) || ''; } catch (_) { return ''; } }
+
   originalText.addEventListener('input', () => {
     wordCount.textContent = countWords(originalText.value) + ' 词';
+    saveDraft();
   });
   originalText.addEventListener('blur', () => {
     var v = originalText.value.trim();
@@ -363,6 +371,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
   loadSample.addEventListener('click', () => {
     originalText.value = SAMPLE;
     wordCount.textContent = countWords(SAMPLE) + ' 词';
+    saveDraft();
     addToHistory(SAMPLE);
   });
 
@@ -788,6 +797,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     stepResult.style.display = 'none';
     originalText.value = '';
     wordCount.textContent = '0 词';
+    saveDraft();
     lastRecording = null;
     playback.style.display = 'none';
     playback.src = '';
@@ -801,6 +811,8 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     originalText.focus();
   });
 
+  // 页面加载：回填草稿并统计词数
+  originalText.value = loadDraft();
   wordCount.textContent = countWords(originalText.value) + ' 词';
 
   // ============ 历史记录 & 收藏 ============
@@ -873,7 +885,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     var t = e.target.closest('[data-text]');
     if (!t) return;
     var text = t.dataset.text;
-    if (t.classList.contains('chip-text')) { originalText.value = text; wordCount.textContent = countWords(text) + ' 词'; }
+    if (t.classList.contains('chip-text')) { originalText.value = text; wordCount.textContent = countWords(text) + ' 词'; saveDraft(); }
     else if (t.classList.contains('chip-star')) { toggleFavorite(text); }
     else if (t.classList.contains('chip-del')) { removeFromHistory(text); }
   });
@@ -935,6 +947,7 @@ footer.app-foot { text-align: center; font-size: 12px; color: var(--muted); marg
     if (t.classList.contains('chip-text')) {
       originalText.value = word;
       wordCount.textContent = countWords(word) + ' 词';
+      saveDraft();
       originalText.focus();
     } else if (t.classList.contains('chip-del')) {
       removeMistake(word);
